@@ -324,8 +324,34 @@ with st.sidebar:
                 # New document collection = new conversation.
                 st.session_state.chat_history = []
 
+            
             except Exception as error:
-                st.error(f"Could not read the PDFs: {error}")
+                error_message = str(error).lower()
+
+                if "rate limit" in error_message or "429" in error_message:
+                    st.warning(
+                        "CampusAI is receiving too many requests right now. "
+                        "Please wait a moment and try again."
+                    )
+                elif (
+                    "authentication" in error_message
+                    or "401" in error_message
+                    or "403" in error_message
+                ):
+                    st.error(
+                        "CampusAI could not authenticate with the AI service. "
+                        "Please check the server's API configuration."
+                    )
+                elif "timeout" in error_message:
+                    st.warning(
+                        "The AI service took too long to respond. "
+                        "Please try again."
+                    )
+                else:
+                    st.error(
+                        "CampusAI couldn't generate an answer this time. "
+                        "Please try again in a moment."
+                    )
                 st.stop()
 
         st.success(
@@ -574,9 +600,12 @@ elif feature == "💬 Ask CampusAI":
 
             if last_answer:
                 st.caption(
-                    "The assistant uses TF-IDF similarity to select relevant "
-                    "passages. The source list identifies the pages retrieved "
-                    "for the answer; it does not guarantee every claim is correct."
+                    "The assistant uses TF-IDF similarity to retrieve passages "
+                    "from your selected PDFs. The source list shows which document "
+                    "pages were provided to the AI as context. These are retrieved "
+                    "sources, not proof that every statement in the answer is correct. "
+                    "Check the cited passages when accuracy is important."
+                   
                 )
 
 
@@ -672,14 +701,30 @@ elif feature == "✅ Generate MCQs":
         else:
             try:
                 with st.spinner("Creating your practice test..."):
-                    result = ask_ai(
-                        "Create multiple-choice questions based only on "
-                        "the supplied notes. Give four options A, B, C, D. "
-                        "Identify the correct answer and explain it briefly. "
-                        "Cite a source document and page when supported. "
-                        "Do not invent facts.",
-                        f"Create {number} MCQs from these notes:\n{context}",
-                        max_tokens=1800,
+                     result = ask_ai(
+                        "You are an expert college exam question setter. "
+                        "Create multiple-choice questions using only the supplied "
+                        "study notes. Do not use unsupported outside facts. "
+                        "For every question, follow this exact structure:\n"
+                        "1. Question number and question text.\n"
+                        "2. Difficulty: Easy, Medium, or Hard.\n"
+                        "3. Four options labelled A, B, C, and D.\n"
+                        "4. Exactly one correct answer.\n"
+                        "5. Correct answer with its option letter.\n"
+                        "6. A brief explanation grounded in the notes.\n"
+                        "7. Source document and PDF page, when identifiable.\n\n"
+                        "Make incorrect options plausible but clearly incorrect "
+                        "according to the supplied notes. Avoid duplicate questions, "
+                        "ambiguous wording, and questions with multiple correct "
+                        "answers. Distribute correct options across A, B, C, and D "
+                        "where practical. If the notes cannot support a question, "
+                        "do not invent it. If the notes contain insufficient "
+                        "information for the requested number, say so.",
+                        f"Create up to {number} high-quality MCQs from these notes. "
+                        "Use the optional topic as the focus if one is provided.\n\n"
+                        f"Topic: {topic.strip() or 'General revision'}\n\n"
+                        f"Study notes:\n{context}",
+                        max_tokens=2200,
                     )
 
                 st.markdown("### Your Practice Test")
@@ -732,14 +777,32 @@ elif feature == "📚 Revision Questions":
             try:
                 with st.spinner("Preparing exam questions..."):
                     result = ask_ai(
-                        "Create a mix of short-answer and long-answer "
-                        "revision questions based only on the supplied notes. "
-                        "Include source document and page labels when possible. "
-                        "Do not invent facts.",
-                        f"Create {number} revision questions from these notes:\n"
-                        f"{context}",
-                        max_tokens=1500,
+                        "You are an expert college exam preparation assistant. "
+                        "Generate revision questions using only the supplied "
+                        "study notes. Do not invent facts or introduce unsupported "
+                        "topics.\n\n"
+                        "Create a balanced selection of questions appropriate "
+                        "for a college student. Include short-answer questions "
+                        "testing definitions and key facts, long-answer questions "
+                        "testing explanations and comparisons, and conceptual "
+                        "questions testing understanding and application.\n\n"
+                        "For every question, provide:\n"
+                        "1. Question number and question text.\n"
+                        "2. Type: Short Answer, Long Answer, or Conceptual.\n"
+                        "3. Difficulty: Easy, Medium, or Hard.\n"
+                        "4. A concise answer outline with the main points expected "
+                        "in a good exam answer.\n"
+                        "5. Source document and PDF page when identifiable.\n\n"
+                        "Keep answers proportionate to the question type. "
+                        "Avoid duplicate questions. If the supplied notes do not "
+                        "contain enough information, acknowledge the limitation "
+                        "instead of making up content.",
+                        f"Create up to {number} exam-focused revision questions.\n\n"
+                        f"Topic: {topic.strip() or 'General revision'}\n\n"
+                        f"Study notes:\n{context}",
+                        max_tokens=2200,
                     )
+                        
 
                 st.markdown("### Revision Questions")
                 st.markdown(result)
